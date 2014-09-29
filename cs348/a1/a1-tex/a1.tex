@@ -1,0 +1,170 @@
+\documentclass[12pt]{article}
+\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm]{geometry}
+\usepackage{enumitem}
+\usepackage{amssymb}
+\usepackage{amsmath,amsthm}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\usepackage{listings}
+\lstset{breaklines=true}
+
+\begin{document}
+\begin{center}
+\Large{Assignment 1}\\
+\small{Daniel Que, 20479762}
+\end{center}
+\section*{Part A}
+Note: \string^ replaced with "and" due to problems in math mode with \LaTeX.
+
+\subsection*{Q1}
+$\sigma_{p\_brand = "Brand#42" \hat{} p\_size >= 43 \hat{} p\_size <= 47}(part)$
+
+\subsection*{Q2}
+$\pi_{c\_custkey, c\_name, c\_phone}(\sigma_{c\_acctbal < 0 \text{ and } c\_nationkey = n\_nationkey}(customer \times (\sigma_{n\_name = "CANADA"}(nation)))$
+
+\subsection*{Q3}
+$(\rho (R (c\_phone \rightarrow phone, c\_acctbal \rightarrow acctbal), \pi_{c\_phone, c\_acctbal} (\sigma_{c\_acctbal > 9975} (customer)))\\
+\cup\\
+(\rho (R (s\_phone \rightarrow phone, s\_acctbal \rightarrow acctbal), \pi_{s\_phone, s\_acctbal} (\sigma_{s\_acctbal > 9500} (supplier)))
+$
+
+\subsection*{Q4}
+$nation \times supplier$
+condition: n\_nationkey = s_nationkey
+
+$\sigma_{s_suppkey != s2.s\_suppkey and } (supplier \times supplier$
+
+$where t1.s\_suppk where t1.s\_suppkey ~= t2.s\_suppkey and t1.s\_nationkey == t2.s\_nationkeyey ~= t2.s\_suppkey and t1.s\_nationkey == t2.s\_nationkey$
+
+RA:\\
+
+\section*{Part B}
+
+\subsection*{Q1}
+\begin{verbatim}
+SELECT P_PARTKEY FROM PART P
+WHERE P.P_BRAND = 'BRAND#42' AND P.P_SIZE >= 43 AND P.P_SIZE <= 47
+;
+\end{verbatim}
+
+\subsection*{Q2}
+\begin{verbatim}
+SELECT C_CUSTKEY, C_NAME, C_PHONE
+FROM CUSTOMER C, NATION N
+WHERE C.C_ACCTBAL < 0 AND C.C_NATIONKEY = N.N_NATIONKEY AND N.N_NAME = "CANADA"
+;
+\end{verbatim}
+
+\subsection*{Q3}
+\begin{verbatim}
+SELECT C_NAME, C_PHONE, C_ACCTBAL
+FROM CUSTOMER C
+WHERE C_ACCTBAL > 9975
+UNION
+SELECT S_NAME, S_PHONE, S_ACCTBAL
+FROM SUPPLIER S
+WHERE S_ACCTBAL > 9500
+;
+\end{verbatim}
+
+\subsection*{Q4}
+\begin{verbatim}
+SELECT N_NAME
+FROM SUPPLIER S, NATION N
+WHERE S_NATIONKEY=N_NATIONKEY
+GROUP BY S_NATIONKEY
+HAVING COUNT(*)>=2
+;
+\end{verbatim}
+SQL: To make this change in SQL is a simple modification. Simply change the '2' in "HAVING COUNT(*)>=2" to a '7'.
+
+\subsection*{Q5}
+\begin{verbatim}
+SELECT R_NAME, N_NAME
+FROM REGION R LEFT OUTER JOIN NATION N
+ON R.R_REGIONKEY=N.N_REGIONKEY
+ORDER BY R_NAME, N_NAME ASC
+;
+\end{verbatim}
+
+\subsection*{Q6}
+\begin{verbatim}
+SELECT COUNT(*) AS TOTAL
+FROM (SELECT O_CUSTKEY, COUNT(*) NUM_ORDERS
+  FROM ORDERS O
+  GROUP BY O.O_CUSTKEY
+  HAVING NUM_ORDERS = 0) AS TEMP
+;
+\end{verbatim}
+
+\subsection*{Q7}
+\begin{verbatim}
+SELECT N_NAME, C_NAME, MAX(C_ACCTBAL) AS LARGEST_BALANCE
+FROM (SELECT N_NAME, C_NAME, C_ACCTBAL
+  FROM CUSTOMER C, NATION N
+  WHERE C.C_NATIONKEY=N.N_NATIONKEY) TEMP
+GROUP BY N_NAME
+;
+\end{verbatim}
+If the assumption that every nation contains at least one customer that has at least one order is taken away, the query will simply return the top customers for nations that do have at least one, and exclude the nations with no customers.
+
+\subsection*{Q8}
+\begin{verbatim}
+SELECT N_NATIONKEY, N_NAME, COUNT(*), CAST(SUM(O_TOTALPRICE) AS DECIMAL(13,2)) AS CUMULATIVE_ORDER_PRICE
+FROM ORDERS O, CUSTOMER C, NATION N
+WHERE O.O_CUSTKEY=C.C_CUSTKEY and C_NATIONKEY=N_NATIONKEY
+GROUP BY N_NATIONKEY
+ORDER BY CUMULATIVE_ORDER_PRICE DESC
+;
+\end{verbatim}
+
+\subsection*{Q9}
+\begin{verbatim}
+SELECT N_NAME, NUM_ORDERS
+FROM
+  (SELECT N_NAME, N_NATIONKEY, O_ORDERKEY, C_CUSTKEY, COUNT(*) AS NUM_ORDERS
+  FROM ORDERS O, CUSTOMER C, NATION N
+  WHERE O_CUSTKEY=C_CUSTKEY and C_NATIONKEY=N_NATIONKEY
+  GROUP BY N_NATIONKEY) TEMP
+GROUP BY N_NATIONKEY
+HAVING TEMP.NUM_ORDERS < 
+  (SELECT AVG(NUM_ORDERS)
+  FROM
+    (SELECT N_NAME, N_NATIONKEY, O_ORDERKEY, C_CUSTKEY, COUNT(*) AS NUM_ORDERS
+    FROM ORDERS O, CUSTOMER C, NATION N
+    WHERE O_CUSTKEY=C_CUSTKEY and C_NATIONKEY=N_NATIONKEY
+    GROUP BY N_NATIONKEY) TEMP)
+;
+\end{verbatim}
+
+\subsection*{Q10}
+\begin{lstlisting}
+SELECT mktsegment1.m_mktsegment, CAST(mktsegment1.total AS DECIMAL(13,2)) AS total_f, CAST(mktsegment2.total AS DECIMAL(13,2)) AS total_o, CAST(mktsegment3.total AS DECIMAL(13,2)) AS total_p
+FROM 
+  (SELECT m_mktsegment, c_name, o_orderstatus, count(*), sum(o_totalprice) AS total
+  FROM customer c, orders o, (SELECT c_mktsegment AS m_mktsegment
+    FROM customer c
+    GROUP BY c_mktsegment) mktsegment
+  WHERE c.c_mktsegment=m_mktsegment and c_custkey=o_custkey
+  GROUP BY m_mktsegment, o_orderstatus) mktsegment1,
+  (SELECT m_mktsegment, c_name, o_orderstatus, count(*), sum(o_totalprice) AS total
+  FROM customer c, orders o, (SELECT c_mktsegment AS m_mktsegment
+    FROM customer c
+    GROUP BY c_mktsegment) mktsegment
+  WHERE c.c_mktsegment=m_mktsegment and c_custkey=o_custkey
+  GROUP BY m_mktsegment, o_orderstatus) mktsegment2,
+  (SELECT m_mktsegment, c_name, o_orderstatus, count(*), sum(o_totalprice) AS total
+  FROM customer c, orders o, (SELECT c_mktsegment AS m_mktsegment
+    FROM customer c
+    GROUP BY c_mktsegment) mktsegment
+WHERE c.c_mktsegment=m_mktsegment and c_custkey=o_custkey
+GROUP BY m_mktsegment, o_orderstatus) mktsegment3
+WHERE mktsegment1.m_mktsegment=mktsegment2.m_mktsegment and mktsegment2.m_mktsegment=mktsegment3.m_mktsegment and mktsegment1.o_orderstatus="f" and mktsegment2.o_orderstatus="o" and mktsegment3.o_orderstatus="p"
+ORDER BY mktsegment1.m_mktsegment ASC
+;
+\end{lstlisting}
+
+\end{document}
+

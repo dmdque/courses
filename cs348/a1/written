@@ -1,0 +1,13 @@
+todo:
+4. ra
+ra part a
+Q10
+
+Physical Submission
+
+4)
+RA:
+SQL: To make this change in SQL is a simple modification. Simply change the '2' in "HAVING COUNT(*)>=2" to a '7'.
+
+7)
+If the assumption that every nation contains at least one customer that has at least one order is taken away, the query will simply return the top customers for nations that do have at least one, and exclude the nations with no customers.
