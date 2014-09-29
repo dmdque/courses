@@ -34,7 +34,7 @@ $
 $nation \times supplier$
 condition: n\_nationkey = s_nationkey
 
-$\sigma_{s_suppkey != s2.s\_suppkey and } (supplier \times supplier$
+$\sigma_{s1.s_suppkey != s2.s\_suppkey and s1.s_nationkey = s2.s_nationkey } (supplier s1 \times supplier s2)$
 
 $where t1.s\_suppk where t1.s\_suppkey ~= t2.s\_suppkey and t1.s\_nationkey == t2.s\_nationkeyey ~= t2.s\_suppkey and t1.s\_nationkey == t2.s\_nationkey$
 
