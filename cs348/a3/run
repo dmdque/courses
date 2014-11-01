@@ -1,0 +1,1 @@
+javac A3.java ; java -cp .:mysql-connector-java-5.1.33-bin.jar A3 "jdbc:mysql://127.0.0.1/cs348?user=java&password=java&Database=tpch;" input.txt
