@@ -2,9 +2,13 @@
  * getV
  * setV
  * setM needs modifications
- * add
  * delete
  * delete all
+ * add
+ sub
+ mult
+ transpose
+ sql
 */
 import java.sql.*;
 import java.util.Properties;
@@ -33,8 +37,8 @@ public class A3 {
 
   public static ArrayList<MatrixEntry> convertMatrixToSparse(double[][] matrix) {
     ArrayList<MatrixEntry> meList = new ArrayList<MatrixEntry>();
-    for(int col = 0; col < matrix[0].length; col++) {
-      for(int row = 0; row < matrix.length; row++) {
+    for(int col = 0; col < matrix.length; col++) {
+      for(int row = 0; row < matrix[0].length; row++) {
         if(matrix[col][row] != 0)
           meList.add(new MatrixEntry(row, col, matrix[col][row]));
       }
@@ -68,8 +72,8 @@ public class A3 {
 
     // note: this is not good for space complexity
     double[][] matrix = convertSparseToMatrix(md, meList);
-    for(int i = 0; i < md.col; i++) {
-      for(int j = 0; j < md.row; j++) {
+    for(int i = 0; i < md.row; i++) {
+      for(int j = 0; j < md.col; j++) {
         System.out.print(matrix[j][i] + "\t"); // note that i and j are reversed for the sake of printing
       }
       System.out.println();
@@ -77,13 +81,25 @@ public class A3 {
     System.out.println();
   }
 
-  public static void writeMatrixDB(int matrix_id, double[][] matrix) throws SQLException {
-    ArrayList<MatrixEntry> meList = new ArrayList<MatrixEntry>();
-    meList = convertMatrixToSparse(matrix);
-
+  public static void writeSparseToDB(int matrix_id, ArrayList<MatrixEntry> meList) throws SQLException {
     for(MatrixEntry me : meList) {
       // write to db
       setV(matrix_id, me.row, me.col, me.val);
+    }
+  }
+
+  public static void writeMatrixDB(int matrix_id, double[][] matrix) throws SQLException {
+    ArrayList<MatrixEntry> meList = new ArrayList<MatrixEntry>();
+    meList = convertMatrixToSparse(matrix);
+    writeSparseToDB(matrix_id, meList);
+  }
+
+  public static void printMatrix(double[][] matrix) {
+    for(int i = 0; i < matrix.length; i++) {
+      for(int j = 0; j < matrix[0].length; j++) {
+        System.out.print(matrix[j][i] + "\t"); // note that i and j are reversed for the sake of printing
+      }
+      System.out.println();
     }
   }
 
@@ -101,12 +117,7 @@ public class A3 {
           matrix[col][row] = matrix1[col][row] - matrix2[col][row];
         }
       }
-      for(int i = 0; i < md1.col; i++) {
-        for(int j = 0; j < md1.row; j++) {
-          System.out.print(matrix[j][i] + "\t"); // note that i and j are reversed for the sake of printing
-        }
-        System.out.println();
-      }
+      if(DEBUG) { printMatrix(matrix); }
       // delete old matrix1 and store new matrix1
       deleteMatrix(id1);
       setM(id1, md1.row, md1.col);
@@ -131,12 +142,7 @@ public class A3 {
           matrix[col][row] = matrix1[col][row] + matrix2[col][row];
         }
       }
-      for(int i = 0; i < md1.col; i++) {
-        for(int j = 0; j < md1.row; j++) {
-          System.out.print(matrix[j][i] + "\t"); // note that i and j are reversed for the sake of printing
-        }
-        System.out.println();
-      }
+      if(DEBUG) { printMatrix(matrix); }
       // delete old matrix1 and store new matrix1
       deleteMatrix(id1);
       setM(id1, md1.row, md1.col);
@@ -146,6 +152,50 @@ public class A3 {
       System.out.println("ERROR: mismatched dimensions");
       return 1;
     }
+  }
+
+  public static int multMatricies(int id1, int id2) throws SQLException {
+    MatrixDimension md1 = checkMatrixExists(id1);
+    MatrixDimension md2 = checkMatrixExists(id2);
+    double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
+    double[][] matrix2 = convertSparseToMatrix(md2, getSparseMatrixFromDB(id2));
+
+    if(md1.col != md2.row) {
+      return 1;
+    }
+
+    MatrixDimension mdResult = new MatrixDimension(md1.row, md2.col);
+    double[][] matrix = createZeroedMatrix(mdResult);
+
+    // TODO: matrix multiplication
+
+    // delete old matrix1 and store new matrix1
+    deleteMatrix(id1);
+    setM(id1, md1.row, md1.col);
+    writeMatrixDB(id1, matrix);
+    return 0;
+  }
+
+  // TODO: modify to consume two matrix_ids and store result in matrix_1
+  public static int transposeMatrix(int id1, int id2) throws SQLException {
+    // load the matrix into memory
+    MatrixDimension md1 = checkMatrixExists(id1);
+    MatrixDimension md2 = checkMatrixExists(id2);
+    if(md1.row != md2.col || md1.col != md2.row) {
+      return 1;
+    }
+    ArrayList<MatrixEntry> meList = getSparseMatrixFromDB(id2);
+
+    // transpose (for each entry, swap row and col)
+    for(MatrixEntry me : meList) {
+      int temp = me.col;
+      me.col = me.row;
+      me.row = temp;
+    }
+    deleteMatrix(id1); // delete matrix from db
+    setM(id1, md2.col, md2.row); // setM with swapped dimensions
+    writeSparseToDB(id1, meList); // write to db
+    return 0;
   }
 
   // returns dimensions of the last matrix found, or null if none exist
@@ -162,16 +212,6 @@ public class A3 {
     }
     return md;
 
-    //query = "SELECT COUNT(*) FROM MATRIX WHERE MATRIX_ID = " + matrix_id;
-    //stmt = con.createStatement();
-    //rs = stmt.executeQuery(query);
-    //while(rs.next()) {
-      //if(Integer.parseInt(rs.getString(1)) > 0) {
-        //System.out.println("num: " + rs.getString(1));
-        //return true;
-      //}
-    //}
-    //return null;
   }
 
   public static Double getV(int matrix_id, int row_num, int column_num) throws SQLException {
@@ -278,6 +318,13 @@ public class A3 {
     
   }
 
+  public static void transposeMatrixWrapper(int id1, int id2) throws SQLException {
+    if(transposeMatrix(id1, id2) == 0)
+      System.out.println("DONE");
+    else
+      System.out.println("ERROR");
+  }
+
   public static void addMatriciesWrapper(int id1, int id2) throws SQLException {
     if(addMatricies(id1, id2) == 0)
       System.out.println("DONE");
@@ -329,10 +376,12 @@ public class A3 {
     System.out.println("Before:");
     printSparseMatrix(1);
 
-    setM(1, 5, 5);
-    setM(2, 5, 5);
+    setM(1, 3, 5);
+    setM(2, 3, 5);
+    setM(3, 5, 3);
     setVWrapper(1, 3, 4, 2.3);
     setVWrapper(1, 3, 2, 2.3);
+    setVWrapper(3, 3, 2, 5);
 
     setVWrapper(2, 3, 2, -2.3);
     getVWrapper(1, 3, 4);
@@ -340,8 +389,14 @@ public class A3 {
     System.out.println("State 1:");
     printSparseMatrix(1);
     printSparseMatrix(2);
+    printSparseMatrix(3);
+
     subMatricies(1, 2);
     System.out.println("State 2:");
+    printSparseMatrix(1);
+    transposeMatrixWrapper(1, 2);
+    transposeMatrixWrapper(1, 3);
+    System.out.println("after transpose: ");
     printSparseMatrix(1);
 
     deleteMatrixWrapper(1);
