@@ -13,6 +13,7 @@
 import java.sql.*;
 import java.util.Properties;
 import java.util.*;
+import java.io.*;
 
 public class A3 {
   public static boolean DEBUG = false;
@@ -229,7 +230,7 @@ public class A3 {
           return Double.parseDouble(rs.getString("VALUE"));
         }
         //System.out.println("ERROR: entry doesn't exist");
-        return null;
+        return 0.0;
       } else {
         //System.out.println("ERROR: out of bounds");
         return null;
@@ -367,41 +368,81 @@ public class A3 {
       System.out.println("ERROR");
   }
 
-  public static void main(String[] args) throws ClassNotFoundException,SQLException {
+  public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
     final String CONNECTION_STRING = args[0];
     // Try to connect
     con = DriverManager.getConnection(CONNECTION_STRING);
     System.out.println("Connection Established");
 
+
+    BufferedReader in = new BufferedReader(new FileReader(args[1]));
+    String line = in.readLine();
+    while(line != null) {
+      System.out.println(line);
+      String[] tokens = line.split(" ");
+      if(tokens[0].equalsIgnoreCase("SETM")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        int id3 = Integer.parseInt(tokens[3]);
+        setM(id1, id2, id3);
+      } else if(tokens[0].equalsIgnoreCase("SETV")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        int id3 = Integer.parseInt(tokens[3]);
+        double value = Double.parseDouble(tokens[4]);
+        setV(id1, id2, id3, value);
+      } else if(tokens[0].equalsIgnoreCase("GETV")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        int id3 = Integer.parseInt(tokens[3]);
+        getVWrapper(id1, id2, id3);
+      } else if(tokens[0].equalsIgnoreCase("ADD")) {
+      } else if(tokens[0].equalsIgnoreCase("SUB")) {
+      } else if(tokens[0].equalsIgnoreCase("TRANSPOSE")) {
+      } else if(tokens[0].equalsIgnoreCase("DELETE")) {
+        if(tokens[0].equalsIgnoreCase("ALL")) {
+        } else {
+        }
+      } else if(tokens[0].equalsIgnoreCase("PRINT")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        printSparseMatrix(id1);
+      } else if(tokens[0].equalsIgnoreCase("SETM")) {
+
+      }
+      
+      line = in.readLine();
+    }
+    in.close();
+
     System.out.println("Before:");
     printSparseMatrix(1);
 
-    setM(1, 3, 5);
-    setM(2, 3, 5);
-    setM(3, 5, 3);
-    setVWrapper(1, 3, 4, 2.3);
-    setVWrapper(1, 3, 2, 2.3);
-    setVWrapper(3, 3, 2, 5);
+    //setM(1, 3, 5);
+    //setM(2, 3, 5);
+    //setM(3, 5, 3);
+    //setVWrapper(1, 3, 4, 2.3);
+    //setVWrapper(1, 3, 2, 2.3);
+    //setVWrapper(3, 3, 2, 5);
 
-    setVWrapper(2, 3, 2, -2.3);
-    getVWrapper(1, 3, 4);
+    //setVWrapper(2, 3, 2, -2.3);
+    //getVWrapper(1, 3, 4);
     
-    System.out.println("State 1:");
-    printSparseMatrix(1);
-    printSparseMatrix(2);
-    printSparseMatrix(3);
+    //System.out.println("State 1:");
+    //printSparseMatrix(1);
+    //printSparseMatrix(2);
+    //printSparseMatrix(3);
 
-    subMatricies(1, 2);
-    System.out.println("State 2:");
-    printSparseMatrix(1);
-    transposeMatrixWrapper(1, 2);
-    transposeMatrixWrapper(1, 3);
-    System.out.println("after transpose: ");
-    printSparseMatrix(1);
+    //subMatricies(1, 2);
+    //System.out.println("State 2:");
+    //printSparseMatrix(1);
+    //transposeMatrixWrapper(1, 2);
+    //transposeMatrixWrapper(1, 3);
+    //System.out.println("after transpose: ");
+    //printSparseMatrix(1);
 
-    deleteMatrixWrapper(1);
-    printSparseMatrix(1);
-    deleteAllWrapper();
+    //deleteMatrixWrapper(1);
+    //printSparseMatrix(1);
+    //deleteAllWrapper();
     
     con.close();
   }
