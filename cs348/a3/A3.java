@@ -1,9 +1,17 @@
+/*
+ * getV
+ * setV
+ * setM needs modifications
+ * add
+ * delete
+ * delete all
+*/
 import java.sql.*;
 import java.util.Properties;
 import java.util.*;
 
 public class A3 {
-  public static boolean DEBUG = true;
+  public static boolean DEBUG = false;
   public static boolean DEBUG_SQL = false;
   // The JDBC Connector Class.
 
@@ -31,11 +39,6 @@ public class A3 {
           meList.add(new MatrixEntry(row, col, matrix[col][row]));
       }
     }
-    if(DEBUG) {
-      for(MatrixEntry me : meList) {
-        System.out.println(me);
-      }
-    }
     return meList;
   }
 
@@ -59,6 +62,8 @@ public class A3 {
 
   public static void printSparseMatrix(int matrix_id) throws SQLException {
     MatrixDimension md = checkMatrixExists(matrix_id); // get matrix dimensions
+    if(md == null)
+      return;
     ArrayList<MatrixEntry> meList = getSparseMatrixFromDB(matrix_id);
 
     // note: this is not good for space complexity
@@ -69,6 +74,7 @@ public class A3 {
       }
       System.out.println();
     }
+    System.out.println();
   }
 
   public static void writeMatrixDB(int matrix_id, double[][] matrix) throws SQLException {
@@ -77,15 +83,45 @@ public class A3 {
 
     for(MatrixEntry me : meList) {
       // write to db
-      System.out.println(me);
       setV(matrix_id, me.row, me.col, me.val);
     }
   }
 
-  public static void addMatricies(int id1, int id2) throws SQLException {
+  // code copied from add, with '+' changed to '-'
+  public static int subMatricies(int id1, int id2) throws SQLException {
     MatrixDimension md1 = checkMatrixExists(id1);
-    double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
     MatrixDimension md2 = checkMatrixExists(id2);
+    double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
+    double[][] matrix2 = convertSparseToMatrix(md2, getSparseMatrixFromDB(id2));
+
+    if(md1.row == md2.row && md1.col == md2.col) {
+      double[][] matrix = createZeroedMatrix(md1);
+      for(int col = 0; col < md1.col; col++) {
+        for(int row = 0; row < md1.row; row++) {
+          matrix[col][row] = matrix1[col][row] - matrix2[col][row];
+        }
+      }
+      for(int i = 0; i < md1.col; i++) {
+        for(int j = 0; j < md1.row; j++) {
+          System.out.print(matrix[j][i] + "\t"); // note that i and j are reversed for the sake of printing
+        }
+        System.out.println();
+      }
+      // delete old matrix1 and store new matrix1
+      deleteMatrix(id1);
+      setM(id1, md1.row, md1.col);
+      writeMatrixDB(id1, matrix);
+      return 0;
+    } else {
+      System.out.println("ERROR: mismatched dimensions");
+      return 1;
+    }
+  }
+
+  public static int addMatricies(int id1, int id2) throws SQLException {
+    MatrixDimension md1 = checkMatrixExists(id1);
+    MatrixDimension md2 = checkMatrixExists(id2);
+    double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
     double[][] matrix2 = convertSparseToMatrix(md2, getSparseMatrixFromDB(id2));
 
     if(md1.row == md2.row && md1.col == md2.col) {
@@ -101,11 +137,14 @@ public class A3 {
         }
         System.out.println();
       }
-      // TODO: store result back in matrix1
       // delete old matrix1 and store new matrix1
+      deleteMatrix(id1);
+      setM(id1, md1.row, md1.col);
       writeMatrixDB(id1, matrix);
+      return 0;
     } else {
-      System.out.println("Error: mismatched dimensions");
+      System.out.println("ERROR: mismatched dimensions");
+      return 1;
     }
   }
 
@@ -161,6 +200,31 @@ public class A3 {
     }
   }
 
+
+  public static void deleteAll() throws SQLException {
+    String query = "DELETE FROM MATRIX_DATA";
+    if(DEBUG_SQL) { System.out.println("query: " + query); }
+    Statement stmt = con.createStatement();
+    stmt.executeUpdate(query);
+
+    query = "DELETE FROM MATRIX";
+    if(DEBUG_SQL) { System.out.println("query: " + query); }
+    stmt = con.createStatement();
+    stmt.executeUpdate(query);
+  }
+
+  public static void deleteMatrix(int matrix_id) throws SQLException {
+    String query = "DELETE FROM MATRIX_DATA WHERE MATRIX_ID = " + matrix_id;
+    if(DEBUG_SQL) { System.out.println("query: " + query); }
+    Statement stmt = con.createStatement();
+    stmt.executeUpdate(query);
+
+    query = "DELETE FROM MATRIX WHERE MATRIX_ID = " + matrix_id;
+    if(DEBUG_SQL) { System.out.println("query: " + query); }
+    stmt = con.createStatement();
+    stmt.executeUpdate(query);
+  }
+
   // checks if matrix exists
   // checks if in bounds
   public static int setV(int matrix_id, int row_num, int column_num, double value) throws SQLException {
@@ -178,7 +242,7 @@ public class A3 {
         if(row_num < md.row && column_num < md.col && row_num >= 0 && column_num >= 0) {
           // INSERT the value
           String query = "INSERT INTO MATRIX_DATA VALUES (" + matrix_id + "," + row_num + "," + column_num + "," + value + ")";
-          System.out.println("query: " + query);
+          if(DEBUG_SQL) { System.out.println("query: " + query); }
           Statement stmt = con.createStatement();
           stmt.executeUpdate(query);
           return 0;
@@ -201,22 +265,45 @@ public class A3 {
     MatrixDimension md = checkMatrixExists(matrix_id);
     if(md == null) {
       String query = "INSERT INTO MATRIX VALUES (" + matrix_id + "," + row_dim + "," + column_dim + ")";
-      System.out.println("query: " + query);
+      if(DEBUG_SQL) { System.out.println("query: " + query); }
       Statement stmt = con.createStatement();
       stmt.executeUpdate(query);
       //while (rs.next()) {
       //System.out.println(rs.getString(1));
       //}
     } else {
-      System.out.println(md);
       System.out.println("RESIZE NOT YET IMPLEMENTED");
       // TODO: resize matrix
     }
     
   }
 
+  public static void addMatriciesWrapper(int id1, int id2) throws SQLException {
+    if(addMatricies(id1, id2) == 0)
+      System.out.println("DONE");
+    else
+      System.out.println("ERROR");
+  }
+
+  public static void subMatriciesWrapper(int id1, int id2) throws SQLException {
+    if(subMatricies(id1, id2) == 0)
+      System.out.println("DONE");
+    else
+      System.out.println("ERROR");
+  }
+
+  public static void deleteAllWrapper() throws SQLException {
+    deleteAll();
+    System.out.println("DONE");
+  }
+
+  public static void deleteMatrixWrapper(int matrix_id) throws SQLException {
+    deleteMatrix(matrix_id);
+    System.out.println("DONE");
+  }
+
   public static void getVWrapper(int matrix_id, int row_dim, int column_dim) throws SQLException {
-    System.out.print("GETV: ");
+    if(DEBUG) { System.out.print("GETV: "); }
     Double result = getV(matrix_id, row_dim, column_dim);
     if(result == null)
       System.out.println("ERROR");
@@ -225,7 +312,7 @@ public class A3 {
   }
 
   public static void setVWrapper(int matrix_id, int row_dim, int column_dim, double value) throws SQLException {
-    System.out.print("SETV: ");
+    if(DEBUG) { System.out.print("SETV: "); }
     int result = setV(matrix_id, row_dim, column_dim, value);
     if(result == 0)
       System.out.println("DONE");
@@ -243,23 +330,24 @@ public class A3 {
     printSparseMatrix(1);
 
     setM(1, 5, 5);
+    setM(2, 5, 5);
+    setVWrapper(1, 3, 4, 2.3);
+    setVWrapper(1, 3, 2, 2.3);
+
+    setVWrapper(2, 3, 2, -2.3);
     getVWrapper(1, 3, 4);
     
-    //setVWrapper(1, 3, 4, 2.3);
-    //setVWrapper(1, 3, 2, 2.3);
     System.out.println("State 1:");
     printSparseMatrix(1);
-    addMatricies(1, 1);
+    printSparseMatrix(2);
+    subMatricies(1, 2);
     System.out.println("State 2:");
     printSparseMatrix(1);
 
-    //String query = "SELECT COUNT(*) FROM LINEITEM AS CNT";
-    //Statement stmt = con.createStatement();
-    //ResultSet rs = stmt.executeQuery(query);
-    //while (rs.next()) {
-      //System.out.println(rs.getString(1));
-    //}
-
+    deleteMatrixWrapper(1);
+    printSparseMatrix(1);
+    deleteAllWrapper();
+    
     con.close();
   }
 
