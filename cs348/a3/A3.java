@@ -154,8 +154,16 @@ public class A3 {
       return 1;
     }
   }
-
-  public static int multMatricies(int id1, int id2) throws SQLException {
+ 
+  public static double[] getRowFromMatrix(int k, double[][] matrix) {
+    double[] row = new double[matrix.length];
+    for(int i = 0; i < row.length; i++) {
+      row[i] = matrix[i][k];
+    }
+    return row;
+  }
+ 
+  public static int multMatricies(int storeid, int id1, int id2) throws SQLException {
     MatrixDimension md1 = checkMatrixExists(id1);
     MatrixDimension md2 = checkMatrixExists(id2);
     double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
@@ -168,12 +176,20 @@ public class A3 {
     MatrixDimension mdResult = new MatrixDimension(md1.row, md2.col);
     double[][] matrix = createZeroedMatrix(mdResult);
 
-    // TODO: matrix multiplication
+    for(int i = 0; i < matrix1[0].length; i++) {
+      double[] row = getRowFromMatrix(i, matrix1);
+      for(int j = 0; j < matrix2.length; j++) {
+        double[] column = matrix2[j];
+        matrix[j][i] = dotProduct(row, column);
+      }
+    }
+
+    if(DEBUG) { printMatrix(matrix); }
 
     // delete old matrix1 and store new matrix1
-    deleteMatrix(id1);
-    setM(id1, md1.row, md1.col);
-    writeMatrixDB(id1, matrix);
+    deleteMatrix(storeid);
+    setM(storeid, md1.row, md1.col);
+    writeMatrixDB(storeid, matrix);
     return 0;
   }
 
@@ -213,6 +229,26 @@ public class A3 {
     }
     return md;
 
+  }
+
+  // assumes both vectors are of same length
+  public static Double dotProduct(double[] v1, double[] v2) throws SQLException {
+    if(DEBUG) {
+      for(double d : v1) {
+        System.out.print(d + " ");
+      }
+      System.out.println();
+      for(double d : v2) {
+        System.out.print(d + " ");
+      }
+      System.out.println();
+    }
+    double sum = 0;
+    for(int i = 0; i < v1.length; i++) {
+      sum += v1[i] * v2[i];
+    }
+    if(DEBUG) { System.out.println(sum); }
+    return sum;
   }
 
   public static Double getV(int matrix_id, int row_num, int column_num) throws SQLException {
@@ -270,7 +306,7 @@ public class A3 {
   // checks if in bounds
   public static int setV(int matrix_id, int row_num, int column_num, double value) throws SQLException {
     Double currentValue = getV(matrix_id, row_num, column_num);
-    if(currentValue != null) {
+    if(currentValue != null && currentValue != 0) {
       // update the value
       String query = "UPDATE MATRIX_DATA SET VALUE = " + value + " WHERE MATRIX_ID = " + matrix_id + " AND ROW_NUM = " + row_num + " AND COL_NUM = " + column_num;
       if(DEBUG_SQL) { System.out.println("query: " + query); }
@@ -318,12 +354,19 @@ public class A3 {
     }
     
   }
-
-  public static void transposeMatrixWrapper(int id1, int id2) throws SQLException {
-    if(transposeMatrix(id1, id2) == 0)
+  public static void multMatriciesWrapper(int id1, int id2, int id3) throws SQLException {
+    if(multMatricies(id1, id2, id3) == 0)
       System.out.println("DONE");
     else
       System.out.println("ERROR");
+  }
+
+  public static void transposeMatrixWrapper(int id1, int id2) throws SQLException {
+    if(transposeMatrix(id1, id2) == 0) {
+      System.out.println("DONE");
+    } else {
+      System.out.println("ERROR");
+    }
   }
 
   public static void addMatriciesWrapper(int id1, int id2) throws SQLException {
@@ -374,11 +417,10 @@ public class A3 {
     con = DriverManager.getConnection(CONNECTION_STRING);
     System.out.println("Connection Established");
 
-
     BufferedReader in = new BufferedReader(new FileReader(args[1]));
     String line = in.readLine();
     while(line != null) {
-      System.out.println(line);
+      if(DEBUG) { System.out.println(line); }
       String[] tokens = line.split(" ");
       if(tokens[0].equalsIgnoreCase("SETM")) {
         int id1 = Integer.parseInt(tokens[1]);
@@ -390,7 +432,7 @@ public class A3 {
         int id2 = Integer.parseInt(tokens[2]);
         int id3 = Integer.parseInt(tokens[3]);
         double value = Double.parseDouble(tokens[4]);
-        setV(id1, id2, id3, value);
+        setVWrapper(id1, id2, id3, value);
       } else if(tokens[0].equalsIgnoreCase("GETV")) {
         int id1 = Integer.parseInt(tokens[1]);
         int id2 = Integer.parseInt(tokens[2]);
@@ -398,6 +440,11 @@ public class A3 {
         getVWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("ADD")) {
       } else if(tokens[0].equalsIgnoreCase("SUB")) {
+      } else if(tokens[0].equalsIgnoreCase("MULT")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        int id3 = Integer.parseInt(tokens[3]);
+        multMatriciesWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("TRANSPOSE")) {
       } else if(tokens[0].equalsIgnoreCase("DELETE")) {
         if(tokens[0].equalsIgnoreCase("ALL")) {
@@ -414,36 +461,11 @@ public class A3 {
     }
     in.close();
 
-    System.out.println("Before:");
+    System.out.println("END: ");
     printSparseMatrix(1);
+    printSparseMatrix(2);
+    printSparseMatrix(3);
 
-    //setM(1, 3, 5);
-    //setM(2, 3, 5);
-    //setM(3, 5, 3);
-    //setVWrapper(1, 3, 4, 2.3);
-    //setVWrapper(1, 3, 2, 2.3);
-    //setVWrapper(3, 3, 2, 5);
-
-    //setVWrapper(2, 3, 2, -2.3);
-    //getVWrapper(1, 3, 4);
-    
-    //System.out.println("State 1:");
-    //printSparseMatrix(1);
-    //printSparseMatrix(2);
-    //printSparseMatrix(3);
-
-    //subMatricies(1, 2);
-    //System.out.println("State 2:");
-    //printSparseMatrix(1);
-    //transposeMatrixWrapper(1, 2);
-    //transposeMatrixWrapper(1, 3);
-    //System.out.println("after transpose: ");
-    //printSparseMatrix(1);
-
-    //deleteMatrixWrapper(1);
-    //printSparseMatrix(1);
-    //deleteAllWrapper();
-    
     con.close();
   }
 
