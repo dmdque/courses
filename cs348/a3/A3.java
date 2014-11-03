@@ -9,6 +9,9 @@
  mult
  transpose
  sql
+
+ * SETM
+ * make sure EVERYTHING prints DONE or ERROR. no "ERROR: explanation"
 */
 import java.sql.*;
 import java.util.Properties;
@@ -105,7 +108,7 @@ public class A3 {
   }
 
   // code copied from add, with '+' changed to '-'
-  public static int subMatricies(int id1, int id2) throws SQLException {
+  public static int subMatricies(int storeid, int id1, int id2) throws SQLException {
     MatrixDimension md1 = checkMatrixExists(id1);
     MatrixDimension md2 = checkMatrixExists(id2);
     double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
@@ -120,9 +123,9 @@ public class A3 {
       }
       if(DEBUG) { printMatrix(matrix); }
       // delete old matrix1 and store new matrix1
-      deleteMatrix(id1);
-      setM(id1, md1.row, md1.col);
-      writeMatrixDB(id1, matrix);
+      deleteMatrix(storeid);
+      setM(storeid, md1.row, md1.col);
+      writeMatrixDB(storeid, matrix);
       return 0;
     } else {
       System.out.println("ERROR: mismatched dimensions");
@@ -130,7 +133,7 @@ public class A3 {
     }
   }
 
-  public static int addMatricies(int id1, int id2) throws SQLException {
+  public static int addMatricies(int storeid, int id1, int id2) throws SQLException {
     MatrixDimension md1 = checkMatrixExists(id1);
     MatrixDimension md2 = checkMatrixExists(id2);
     double[][] matrix1 = convertSparseToMatrix(md1, getSparseMatrixFromDB(id1));
@@ -145,9 +148,9 @@ public class A3 {
       }
       if(DEBUG) { printMatrix(matrix); }
       // delete old matrix1 and store new matrix1
-      deleteMatrix(id1);
-      setM(id1, md1.row, md1.col);
-      writeMatrixDB(id1, matrix);
+      deleteMatrix(storeid);
+      setM(storeid, md1.row, md1.col);
+      writeMatrixDB(storeid, matrix);
       return 0;
     } else {
       System.out.println("ERROR: mismatched dimensions");
@@ -213,6 +216,15 @@ public class A3 {
     setM(id1, md2.col, md2.row); // setM with swapped dimensions
     writeSparseToDB(id1, meList); // write to db
     return 0;
+  }
+
+
+  public static void sqlQuery (String query) throws SQLException {
+    Statement stmt = con.createStatement();
+    ResultSet rs = stmt.executeQuery(query);
+    while (rs.next()) {
+      System.out.println(rs.getString(1));
+    }
   }
 
   // returns dimensions of the last matrix found, or null if none exist
@@ -369,15 +381,15 @@ public class A3 {
     }
   }
 
-  public static void addMatriciesWrapper(int id1, int id2) throws SQLException {
-    if(addMatricies(id1, id2) == 0)
+  public static void addMatriciesWrapper(int storeid, int id1, int id2) throws SQLException {
+    if(addMatricies(storeid, id1, id2) == 0)
       System.out.println("DONE");
     else
       System.out.println("ERROR");
   }
 
-  public static void subMatriciesWrapper(int id1, int id2) throws SQLException {
-    if(subMatricies(id1, id2) == 0)
+  public static void subMatriciesWrapper(int storeid, int id1, int id2) throws SQLException {
+    if(subMatricies(storeid, id1, id2) == 0)
       System.out.println("DONE");
     else
       System.out.println("ERROR");
@@ -439,22 +451,39 @@ public class A3 {
         int id3 = Integer.parseInt(tokens[3]);
         getVWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("ADD")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        int id3 = Integer.parseInt(tokens[3]);
+        addMatriciesWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("SUB")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        int id3 = Integer.parseInt(tokens[3]);
+        subMatriciesWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("MULT")) {
         int id1 = Integer.parseInt(tokens[1]);
         int id2 = Integer.parseInt(tokens[2]);
         int id3 = Integer.parseInt(tokens[3]);
         multMatriciesWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("TRANSPOSE")) {
+        int id1 = Integer.parseInt(tokens[1]);
+        int id2 = Integer.parseInt(tokens[2]);
+        transposeMatrixWrapper(id1, id2);
       } else if(tokens[0].equalsIgnoreCase("DELETE")) {
         if(tokens[0].equalsIgnoreCase("ALL")) {
+          int id = Integer.parseInt(tokens[1]);
+          deleteMatrixWrapper(id);
         } else {
+          deleteAllWrapper();
         }
-      } else if(tokens[0].equalsIgnoreCase("PRINT")) {
+      } else if(tokens[0].equalsIgnoreCase("PRINT")) { // for debugging purposes
         int id1 = Integer.parseInt(tokens[1]);
         printSparseMatrix(id1);
-      } else if(tokens[0].equalsIgnoreCase("SETM")) {
-
+      } else if(tokens[0].equalsIgnoreCase("SQL")) {
+        String query = line.substring(4);
+        sqlQuery(query);
+      } else if(tokens[0].equalsIgnoreCase("//")) {
+        // comment
       }
       
       line = in.readLine();
