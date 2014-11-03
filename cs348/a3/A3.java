@@ -1,17 +1,5 @@
 /*
- * getV
- * setV
- * setM needs modifications
- * delete
- * delete all
- * add
- sub
- mult
- transpose
- sql
-
  * SETM
- * make sure EVERYTHING prints DONE or ERROR. no "ERROR: explanation"
 */
 import java.sql.*;
 import java.util.Properties;
@@ -21,17 +9,10 @@ import java.io.*;
 public class A3 {
   public static boolean DEBUG = false;
   public static boolean DEBUG_SQL = false;
-  // The JDBC Connector Class.
-
-  private static final String dbClassName = "com.mysql.jdbc.Driver";
-  // Connection string. cs348 is the database the program is trying to connection
-  // is connecting to,127.0.0.1 is the local loopback IP address for this machine, user name for the connection 
-  // is root, password is cs348
-  //private static final String CONNECTION_STRING;
-    //"jdbc:mysql://127.0.0.1/TPC-H?user=root&password=Marker4114&Database=tpch;";
 
   private static Connection con;
 
+  // creates zeroed matrix of dimensions md
   public static double[][] createZeroedMatrix(MatrixDimension md) {
     double[][] matrix = new double[md.col][md.row];
     for(double[] column : matrix)
@@ -99,8 +80,8 @@ public class A3 {
   }
 
   public static void printMatrix(double[][] matrix) {
-    for(int i = 0; i < matrix.length; i++) {
-      for(int j = 0; j < matrix[0].length; j++) {
+    for(int i = 0; i < matrix[0].length; i++) {
+      for(int j = 0; j < matrix.length; j++) {
         System.out.print(matrix[j][i] + "\t"); // note that i and j are reversed for the sake of printing
       }
       System.out.println();
@@ -128,7 +109,7 @@ public class A3 {
       writeMatrixDB(storeid, matrix);
       return 0;
     } else {
-      System.out.println("ERROR: mismatched dimensions");
+      if(DEBUG) { System.out.println("ERROR: mismatched dimensions"); }
       return 1;
     }
   }
@@ -153,7 +134,7 @@ public class A3 {
       writeMatrixDB(storeid, matrix);
       return 0;
     } else {
-      System.out.println("ERROR: mismatched dimensions");
+      if(DEBUG) { System.out.println("ERROR: mismatched dimensions"); }
       return 1;
     }
   }
@@ -196,7 +177,6 @@ public class A3 {
     return 0;
   }
 
-  // TODO: modify to consume two matrix_ids and store result in matrix_1
   public static int transposeMatrix(int id1, int id2) throws SQLException {
     // load the matrix into memory
     MatrixDimension md1 = checkMatrixExists(id1);
@@ -277,14 +257,14 @@ public class A3 {
           //System.out.println(rs.getString("VALUE"));
           return Double.parseDouble(rs.getString("VALUE"));
         }
-        //System.out.println("ERROR: entry doesn't exist");
+        if(DEBUG) { System.out.println("NOTE: entry doesn't exist"); }
         return 0.0;
       } else {
-        //System.out.println("ERROR: out of bounds");
+        if(DEBUG) { System.out.println("ERROR: out of bounds"); }
         return null;
       }
     } else {
-      //System.out.println("ERROR: matrix doesn't exist");
+      if(DEBUG) { System.out.println("ERROR: matrix doesn't exist"); }
       return null;
     }
   }
@@ -336,11 +316,11 @@ public class A3 {
           stmt.executeUpdate(query);
           return 0;
         } else {
-          System.out.println("ERROR: out of bounds");
+          if(DEBUG) { System.out.println("ERROR: out of bounds"); }
           return 1;
         }
       } else {
-        //System.out.println("ERROR: matrix doesn't exist");
+        if(DEBUG) { System.out.println("ERROR: matrix doesn't exist"); }
         return 2;
       }
     }
@@ -348,8 +328,8 @@ public class A3 {
   
   // checks if matrix already exists
   // if it doesn't creates zeroed matrix
-  // otherwise, TODO
-  public static void setM(int matrix_id, int row_dim, int column_dim) throws SQLException {
+  // otherwise, expand/contract accordingly
+  public static int setM(int matrix_id, int row_dim, int column_dim) throws SQLException {
     // create zeroed matrix
     MatrixDimension md = checkMatrixExists(matrix_id);
     if(md == null) {
@@ -361,11 +341,51 @@ public class A3 {
       //System.out.println(rs.getString(1));
       //}
     } else {
-      System.out.println("RESIZE NOT YET IMPLEMENTED");
-      // TODO: resize matrix
+      boolean colContractable = true;
+      boolean rowContractable = true;
+      ArrayList<MatrixEntry> meList = getSparseMatrixFromDB(matrix_id);
+      for(MatrixEntry me : meList) {
+        if(me.row >= row_dim) {
+          rowContractable = false;
+          break;
+        }
+        if(me.col >= column_dim) {
+          colContractable = false;
+          break;
+        }
+      }
+
+      int newRow = md.row;
+      int newCol = md.col;
+      // row
+      if(row_dim >= md.row) { // expand
+        newRow = row_dim;
+      } else if(row_dim < md.row) { // contract
+        if(rowContractable) {
+          newRow = row_dim;
+        } else {
+          return 1;
+        }
+      }
+      // col
+      if(column_dim >= md.col) {
+        newCol = column_dim;
+      } else if(column_dim < md.col) {
+        if(colContractable) {
+          newCol = column_dim;
+        } else {
+          return 2;
+        }
+      }
+
+      String query = "UPDATE MATRIX SET ROW_DIM = " + newRow + ", COL_DIM = " + newCol + " WHERE MATRIX_ID = " + matrix_id;
+      if(DEBUG_SQL) { System.out.println("query: " + query); }
+      Statement stmt = con.createStatement();
+      stmt.executeUpdate(query);
     }
-    
+    return 0;
   }
+
   public static void multMatriciesWrapper(int id1, int id2, int id3) throws SQLException {
     if(multMatricies(id1, id2, id3) == 0)
       System.out.println("DONE");
@@ -414,6 +434,15 @@ public class A3 {
       System.out.println(result);
   }
 
+  public static void setMWrapper(int matrix_id, int row_dim, int column_dim) throws SQLException {
+    if(DEBUG) { System.out.print("SETM: "); }
+    int result = setM(matrix_id, row_dim, column_dim);
+    if(result == 0)
+      System.out.println("DONE");
+    else
+      System.out.println("ERROR");
+  }
+
   public static void setVWrapper(int matrix_id, int row_dim, int column_dim, double value) throws SQLException {
     if(DEBUG) { System.out.print("SETV: "); }
     int result = setV(matrix_id, row_dim, column_dim, value);
@@ -438,7 +467,7 @@ public class A3 {
         int id1 = Integer.parseInt(tokens[1]);
         int id2 = Integer.parseInt(tokens[2]);
         int id3 = Integer.parseInt(tokens[3]);
-        setM(id1, id2, id3);
+        setMWrapper(id1, id2, id3);
       } else if(tokens[0].equalsIgnoreCase("SETV")) {
         int id1 = Integer.parseInt(tokens[1]);
         int id2 = Integer.parseInt(tokens[2]);
