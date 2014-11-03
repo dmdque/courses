@@ -40,8 +40,7 @@ public class A3 {
 
   public static ArrayList<MatrixEntry> getSparseMatrixFromDB(int matrix_id) throws SQLException {
     String query = "SELECT * FROM MATRIX_DATA WHERE MATRIX_ID = " + matrix_id; // get all tuples related to matrix_id
-    Statement stmt = con.createStatement();
-    ResultSet rs = stmt.executeQuery(query);
+    Statement stmt = con.createStatement(); ResultSet rs = stmt.executeQuery(query);
     ArrayList<MatrixEntry> meList = new ArrayList<MatrixEntry>();
     while (rs.next()) {
       meList.add(new MatrixEntry(Integer.parseInt(rs.getString(2)), Integer.parseInt(rs.getString(3)), Double.parseDouble(rs.getString(4))));
@@ -267,8 +266,7 @@ public class A3 {
       if(DEBUG) { System.out.println("ERROR: matrix doesn't exist"); }
       return null;
     }
-  }
-
+  } 
 
   public static void deleteAll() throws SQLException {
     String query = "DELETE FROM MATRIX_DATA";
@@ -415,8 +413,7 @@ public class A3 {
       System.out.println("ERROR");
   }
 
-  public static void deleteAllWrapper() throws SQLException {
-    deleteAll();
+  public static void deleteAllWrapper() throws SQLException { deleteAll();
     System.out.println("DONE");
   }
 
@@ -425,9 +422,10 @@ public class A3 {
     System.out.println("DONE");
   }
 
-  public static void getVWrapper(int matrix_id, int row_dim, int column_dim) throws SQLException {
-    if(DEBUG) { System.out.print("GETV: "); }
-    Double result = getV(matrix_id, row_dim, column_dim);
+  public static void getVWrapper(int matrix_id, int row_num, int column_num) throws SQLException {
+    row_num--; // adjust to match 0 starting index
+    column_num--;
+    Double result = getV(matrix_id, row_num, column_num);
     if(result == null)
       System.out.println("ERROR");
     else
@@ -435,7 +433,6 @@ public class A3 {
   }
 
   public static void setMWrapper(int matrix_id, int row_dim, int column_dim) throws SQLException {
-    if(DEBUG) { System.out.print("SETM: "); }
     int result = setM(matrix_id, row_dim, column_dim);
     if(result == 0)
       System.out.println("DONE");
@@ -443,9 +440,10 @@ public class A3 {
       System.out.println("ERROR");
   }
 
-  public static void setVWrapper(int matrix_id, int row_dim, int column_dim, double value) throws SQLException {
-    if(DEBUG) { System.out.print("SETV: "); }
-    int result = setV(matrix_id, row_dim, column_dim, value);
+  public static void setVWrapper(int matrix_id, int row_num, int column_num, double value) throws SQLException {
+    row_num--; // adjust to match 0 starting index
+    column_num--;
+    int result = setV(matrix_id, row_num, column_num, value);
     if(result == 0)
       System.out.println("DONE");
     else
@@ -519,7 +517,6 @@ public class A3 {
     }
     in.close();
 
-    System.out.println("END: ");
     printSparseMatrix(1);
     printSparseMatrix(2);
     printSparseMatrix(3);
