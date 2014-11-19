@@ -177,9 +177,10 @@ public class A3 {
     // load the matrix into memory
     MatrixDimension md1 = checkMatrixExists(id1);
     MatrixDimension md2 = checkMatrixExists(id2);
-    if(md1.row != md2.col || md1.col != md2.row) {
-      return 1;
-    }
+    // simply delete all traces of matrix
+    //if(md1.row != md2.col || md1.col != md2.row) {
+      //return 1;
+    //}
     ArrayList<MatrixEntry> meList = getSparseMatrixFromDB(id2);
 
     // transpose (for each entry, swap row and col)
