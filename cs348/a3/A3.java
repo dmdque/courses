@@ -514,10 +514,6 @@ public class A3 {
     }
     in.close();
 
-    printSparseMatrix(1);
-    printSparseMatrix(2);
-    printSparseMatrix(3);
-
     con.close();
   }
 
